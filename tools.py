@@ -197,7 +197,10 @@ def extraer_divipole(texto_ocr):
     Returns:
         variables (Dict): Diccionario con las variables de Divipole y su valor.
     """
-    
+    variables = {
+        "DP_Dept": None, "DP_Munp": None, "DP_Zona": None, 
+        "DP_Psto": None, "DP_Mesa": None, "DP_Lugr": None
+    }
     
     patrones = {
         "DP_Dept": r"DEPARTAMENTO:\s*([\doO]+)",
@@ -207,23 +210,27 @@ def extraer_divipole(texto_ocr):
         "DP_Mesa": r"MESA:\s*([\doO]+)",
         "DP_Lugr": r"LUGAR:\s*(.+?)(?=$)" # Captura desde "LUGAR:" hasta el final
     }
-    
-    variables = {}
-    
-    for clave, patron in patrones.items():
-        match = re.search(patron, texto_ocr, re.IGNORECASE)
+
+    for item in texto_ocr:
+        texto = item.get('texto', '')
         
-        if match:
-            valor_capturado = match.group(1).strip()
+        for clave, patron in patrones.items():
+            # Si la variable ya fue encontrada, no la sobrescribe
+            if variables[clave] is not None:
+                continue
+                
+            match = re.search(patron, texto, re.IGNORECASE)
             
-            # Coerción: Aplicar reemplazo O->0 exclusivamente a campos numéricos
-            if clave != "DP_Lugr":
-                valor_saneado = valor_capturado.upper().replace('O', '0')
-                variables[clave] = valor_saneado
-            else:
-                variables[clave] = valor_capturado
-        else:
-            variables[clave] = None
-            
+            if match:
+                valor_capturado = match.group(1).strip()
+                
+                # Coerción numérica
+                if clave != "DP_Lugr":
+                    variables[clave] = valor_capturado.upper().replace('O', '0')
+                else:
+                    variables[clave] = valor_capturado
+                
+                break # Rompe el ciclo de patrones si ya encontró coincidencia para este item
+                
     return variables
 
