@@ -27,7 +27,7 @@ def com_roi(img_alineada):
         "Barras":
             (int(alto * 0.024), int(alto * 0.038),  int(ancho * 0.35),  int(ancho * 0.65)),
         "Divipole":
-            (int(alto * 0.123), int(alto * 0.219), 0, ancho ), 
+            (int(alto * 0.123), int(alto * 0.186), 0, ancho ), 
         "Codigo":
             (int(alto * 0.195), int(alto * 0.215),  int(ancho * 0.31),  int(ancho * 0.69)),
     }
