@@ -28,6 +28,8 @@ def com_roi(img_alineada):
             (int(alto * 0.024), int(alto * 0.038),  int(ancho * 0.35),  int(ancho * 0.65)),
         "Divipole":
             (int(alto * 0.123), int(alto * 0.219), 0, ancho ), 
+        "Codigo":
+            (int(alto * 0.195), int(alto * 0.215),  int(ancho * 0.31),  int(ancho * 0.69)),
     }
     recortes_resultado = {}
     for zona, (ymin, ymax, xmin, xmax) in mapa_coordenadas.items():
@@ -56,8 +58,8 @@ def roi_p1(img_alineada):
     cv3_2= int(ancho * 0.99)
     mapa_coordenadas = {
 
-        "Nivelacion_Mesa":
-            (int(alto * 0.24), int(alto * 0.34), 0, ancho ),
+        #"Nivelacion_Mesa":
+        #    (int(alto * 0.24), int(alto * 0.34), 0, ancho ),
 
         #"Total_E11_1": (int(alto * 0.24), int(alto * 0.27), int(ancho * 0.72), ancho ),
         "Total_E11_1": (int(alto * 0.24), int(alto * 0.27), cv1_1, cv1_2 ),
@@ -158,8 +160,8 @@ def roi_p2(img_alineada):
     alto, ancho = img_alineada.shape[:2]
     mapa_coordenadas = {
         "Observ_jud": (int(alto * 0.22), int(alto * 0.59), 0, ancho ),
-        "Re_count_si": (int(alto * 0.596), int(alto * 0.614), int(0.415*ancho), int(0.482*ancho) ), ##> 13.5%
-        "Re_count_no": (int(alto * 0.596), int(alto * 0.614), int(0.502*ancho), int(0.569*ancho) ), ##> 18.5%
+        "Re_count_si": (int(alto * 0.598), int(alto * 0.614), int(0.422*ancho), int(0.480*ancho) ), ##> 13.5%
+        "Re_count_no": (int(alto * 0.598), int(alto * 0.614), int(0.510*ancho), int(0.568*ancho) ), ##> 18.5%
         "Count_req_by": (int(alto * 0.621), int(alto * 0.689), 0, ancho ),
         "On_behalf_of": (int(alto * 0.689), int(alto * 0.756), 0, ancho ),
         "Firma_J1": (int(alto * 0.78), int(alto * 0.823), 0, int(0.48*ancho) ),
