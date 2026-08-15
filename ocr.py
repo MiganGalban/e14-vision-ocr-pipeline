@@ -49,7 +49,7 @@ def es_imagen_en_blanco(img_crop, umbral_oscuridad=127, min_proporcion_tinta=0.0
 # Función principal
 # ---------------------------------------------------------------------------
 
-def bloque_ocr(img_crop,  device, vocab_token_ids, processor, model, top_k=5):
+def bloque_ocr(img_crop, label, device, vocab_token_ids, processor, model, top_k=5):
     """
     Clasifica el carácter manuscrito de la imagen dentro del vocabulario 0123456789.*#-/\\ y 
     devuelve las top_k predicciones como lista de dicts {"label": ..., "score": ...}, igual 
@@ -57,6 +57,7 @@ def bloque_ocr(img_crop,  device, vocab_token_ids, processor, model, top_k=5):
         
     Args:
         img_crop (numpy_array): Direccion de imagen a digitalizar
+        label (str):          Etiqueta de la celda que se va a procesar
         device (str):           Hardware con el que se procesa "cpu" o "cuda"
         vocab_token_ids (dict): Diccionario con keys de vocabulario objetivo
         processor (_type_):     modulo que preprocesa la img para el modelo
@@ -64,7 +65,7 @@ def bloque_ocr(img_crop,  device, vocab_token_ids, processor, model, top_k=5):
         top_k (int, optional): Cantidad de resultados requeridos. Defaults to 5.
 
     Returns:
-        dict: Diccionario con las predicciones y su probabilidad de mayor a menor
+        dict: Diccionario con las *top_k* mejores predicciones y su probabilidad de mayor a menor
     """
     #Se asegura formato de 3 canales (RGB) requerido por TrOCRProcessor
     if img_crop.ndim == 2:
@@ -76,7 +77,7 @@ def bloque_ocr(img_crop,  device, vocab_token_ids, processor, model, top_k=5):
     #Verificación de imagen en blanco directamente sobre el ndarray
     # (Suponiendo binarización THRESH_BINARY_INV: Fondo=0, Tinta=255)
     if es_imagen_en_blanco(crop_rgb):
-        return [{"label": "EN_BLANCO", "score": 1.0}]
+        return [{f"{label}": "EN_BLANCO", "score": 1.0}]
     
     #Se convierten los pixeles a tensores
     pixel_values = processor(images=crop_rgb, return_tensors="pt").pixel_values.to(device)
@@ -94,7 +95,7 @@ def bloque_ocr(img_crop,  device, vocab_token_ids, processor, model, top_k=5):
     #Organiza el diccionario de predicciones resultante de mayor a menor 
     ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
 
-    return [{"label": c, "score": s} for c, s in ranked]
+    return [{f"{label}": c, f"s_{label}": s} for c, s in ranked]
 
 
 # ---------------------------------------------------------------------------# ---------------------------------------------------------------------------
@@ -122,7 +123,8 @@ def ocr_documento(image_path, reader):
     # vertical (eje Y) de cada línea para respetar el orden de lectura.
     resultados.sort(key=lambda r: r[0][0][1])
 
-    return [{"texto": texto, "score": score} for _, texto, score in resultados]
+    # Omitimos bbox en el for por que no es necesario
+    return [{f"texto": texto, "score": score} for _, texto, score in resultados]
 
 # ---------------------------------------------------------------------------# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------# ---------------------------------------------------------------------------
@@ -131,7 +133,7 @@ def ocr_documento(image_path, reader):
 # Detección de imagen en blanco (sin ningún trazo) Optical Mark Recognition
 # ---------------------------------------------------------------------------
 
-def evaluar_casilla_omr(recorte_binario, umbral_porcentaje=5.0, margen_interior_pct=0.0):
+def eval_cell_omr(recorte_binario, umbral_porcentaje=5.0, margen_interior_pct=0.0):
     """
     Evalúa si una casilla binarizada está marcada basándose en la densidad de píxeles.
 
