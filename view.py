@@ -120,7 +120,7 @@ def view_crops(dict_cut):
         dict_cut (Dict): Un diccionario con el nombre de la zona y el recorte.
     """
 
-    crops_com  = ['Metadatos_Encabezado', 'Nivelacion_Mesa', 'QR', 'Barras', 'Divipole',
+    crops_com  = ['Metadatos_Encabezado', 'Nivelacion_Mesa', 'QR', 'Barras', 'Divipole', 'Codigo',
                     'Observ_jud', 'Re_count_si', 'Re_count_no', 'Count_req_by', 'On_behalf_of']
     crops_cell = ['Votos_1', 'Votos_2', 'Total_E11', 'Total_Urna', 'Total_Incinerados', 
                     'V_Blanco', 'V_Nulos', 'V_Sin_Marcar', 'Suma_Total']
