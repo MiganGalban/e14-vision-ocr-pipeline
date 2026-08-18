@@ -118,7 +118,8 @@ def ocr_documento(image_path, reader):
     #Devuelve una lista de tuplas con la estructura [(bbox, texto, confianza), ...]
     # bbox: Lista de 4 puntos con coordenadas [X, Y] de las esquinas del cuadro [[x1, y1], [x2, y2], [x3, y3], [x4, y4]].
     resultados = reader.readtext(image_path)  # detección + reconocimiento en un solo paso
-
+    if not resultados:
+        resultados = [([[0, 0], [0, 0], [0, 0], [0, 0]], 'Ilegible', 0)]
     # Cada resultado es (bbox, texto, confianza). Ordenamos por la posición
     # vertical (eje Y) de cada línea para respetar el orden de lectura.
     resultados.sort(key=lambda r: r[0][0][1])
