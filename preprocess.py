@@ -3,7 +3,7 @@ import numpy as np
 from pdf2image import convert_from_path
 import matplotlib.pyplot as plt
 
-from view import view_all_perc
+from view import view_all_perc, view_lite
 
 def pdf_to_img(ruta_pdf):
     """
@@ -55,10 +55,8 @@ def align_pag(img_rgb, margen_w=0.15, margen_h=0.04, tolerancia_aspecto=0.1):
     # Conversión para procesamiento OpenCV
     img_gris = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2GRAY)
     alto, ancho = img_gris.shape
-
     #Margenes en pixeles
     m_x, m_y = int(ancho * margen_w), int(alto * margen_h)
-    
     # Zonas de búsqueda en orden estricto: TL, TR, BL, BR
     # Diccionario de zonas de interes recortados ROI y offset
     # "key": imagen[y_inicio:y_fin, x_inicio:x_fin], (offset_x, offset_y) 
@@ -68,6 +66,27 @@ def align_pag(img_rgb, margen_w=0.15, margen_h=0.04, tolerancia_aspecto=0.1):
         "Bottom-Left":  (img_gris[alto - m_y:alto, 0:m_x], (0, alto - m_y)),
         "Bottom-Right": (img_gris[alto - m_y:alto, ancho - m_x:ancho], (ancho - m_x, alto - m_y))
     }
+    #--------------------------- REVISION --------------------------------------
+    # Crear una figura con 2 filas y 2 columnas
+    fig, axes = plt.subplots(2, 2, figsize=(10, 6))
+
+    # Mapear las posiciones en la cuadrícula
+    posiciones = {
+        "Top-Left": axes[0, 0],
+        "Top-Right": axes[0, 1],
+        "Bottom-Left": axes[1, 0],
+        "Bottom-Right": axes[1, 1]
+    }
+
+    for nombre, (roi, _) in zonas.items():
+        ax = posiciones[nombre]
+        ax.imshow(roi, cmap='gray')
+        ax.set_title(f"{nombre} ({roi.shape[0]}x{roi.shape[1]} px)")
+        ax.axis('off')  # Ocultar ejes
+
+    plt.tight_layout()
+    plt.show()
+    #--------------------------- REVISION --------------------------------------
 
     puntos_origen = []
     
