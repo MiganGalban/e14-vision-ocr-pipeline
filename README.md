@@ -16,7 +16,7 @@ Este repositorio (por ahora) implementa la **Fase 1**: extracción de datos maes
 flowchart TD
     subgraph ORQ [" Orquestador Principal (main.py) "]
         direction TB
-        M ["🚀 Inicio del Pipeline<br><code>main.py</code>"]
+        M["🚀 Inicio del Pipeline<br><code>main.py</code>"]
     end
 
     subgraph Script1 [" Ingestión y Muestreo (src/ingestion/extract_e14_sample.py) "]
