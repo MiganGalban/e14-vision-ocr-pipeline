@@ -18,7 +18,7 @@ flowchart TD
     
     C --> D["📊 Contrato de Datos<br>data/muestra_e14_segunda_vuelta.csv<br>(n = 383)"]
     
-    D -->|src/scraper/<br>scraper_e14.py| E["🔄 Resolución Árbol DIVIPOL JSON<br>Index Map ➔ Concurrencia curl_cffi"]
+    D -->|src/scraper/<br>scraper_e14.py| E["🔄 Resolución Árbol<br>DIVIPOLE JSON<br>Index Map ➔ Concurrencia<br>curl_cffi"]
     
     E --> F["📑 Actas E-14 en PDF<br>/data/{dd}/{mm}/{zz}/..."]
     E --> G["📝 Auditoría Thread-Safe<br>data/errores_descarga.csv"]
