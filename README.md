@@ -110,11 +110,10 @@ e14-vision-ocr-pipeline/
 ├── pyproject.toml
 ├── README.md
 └── requirements.txt
-
+```
 ---
 
 ## 4. Instalación y Ejecución
-
 
 ### 4.1. Clonar el repositorio y configurar el entorno
 
