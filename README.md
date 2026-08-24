@@ -8,12 +8,18 @@ Este repositorio (por ahora) implementa la **Fase 1**: extracción de datos maes
 
 ## 1. Arquitectura del Flujo de Datos
 
+## 1. Arquitectura del Flujo de Datos
+
 ```mermaid
 flowchart TD
-    A["📄 PDF DIVIPOL 2026"] -->|Conversión Tabular & Saneamiento| B[("🗄️ Supabase (PostgreSQL)<br>Tabla: divipole_regis")]
-    B -->|src/ingestion/extract_e14_sample.py| C["⚙️ Filtro (dd != 88)<br>Cochran 95%/5%<br>Estratificación Proporcional"]
-    C --> D["📊 Contrato de Datos<br>data/muestra_e14_segunda_vuelta.csv (n=383)"]
-    D -->|src/scraper/scraper_e14.py| E["🔄 Resolución Árbol DIVIPOL JSON<br>Index Map ➔ Concurrencia curl_cffi"]
+    A["📄 PDF DIVIPOL 2026"] -->|Conversión Tabular<br>& Saneamiento| B[("🗄️ Supabase (PostgreSQL)<br>Tabla: divipole_regis")]
+    
+    B -->|src/ingestion/<br>extract_e14_sample.py| C["⚙️ Filtro (dd != 88)<br>Cochran 95%/5%<br>Estratificación Proporcional"]
+    
+    C --> D["📊 Contrato de Datos<br>data/muestra_e14_segunda_vuelta.csv<br>(n = 383)"]
+    
+    D -->|src/scraper/<br>scraper_e14.py| E["🔄 Resolución Árbol DIVIPOL JSON<br>Index Map ➔ Concurrencia curl_cffi"]
+    
     E --> F["📑 Actas E-14 en PDF<br>/data/{dd}/{mm}/{zz}/..."]
     E --> G["📝 Auditoría Thread-Safe<br>data/errores_descarga.csv"]
 ```
