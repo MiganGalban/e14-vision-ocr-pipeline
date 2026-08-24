@@ -16,16 +16,16 @@ Este repositorio (por ahora) implementa la **Fase 1**: extracción de datos maes
 flowchart TD
     subgraph ORQ [" Orquestador Principal (main.py) "]
         direction TB
-        M["🚀 Inicio del Pipeline<br><code>main.py</code>"]
+        M ["🚀 Inicio del Pipeline<br><code>main.py</code>"]
     end
 
     subgraph Script1 [" Ingestión y Muestreo (src/ingestion/extract_e14_sample.py) "]
         direction TB
         SB[("🗄️ Supabase (PostgreSQL)<br>Tabla: divipole_regis")] --> EXT["⚙️ Extracción Paginada<br>& Filtro Consular (dd != 88)"]
         EXT --> STRAT["📐 Estratificación (zz)<br>Urbano / Rural / Cárcel"]
-        STRAT --> COCH["🧮 Tamaño Muestral (Cochran)<br>95% Confianza | 5% Error"]
-        COCH --> EXP["🔀 Expansión a Nivel Mesa<br>& Muestreo Aleatorio (Seed=42)"]
-        EXP --> CSV1["📊 Contrato de Datos<br><code>data/muestra_e14_segunda_vuelta.csv</code> (n=383)"]
+        STRAT --> COCH["🧮 Tamaño Muestral<br>(Cochran) 95% Confianza<br>5% Error"]
+        COCH --> EXP["🔀 Expansión a Nivel Mesa<br>& Muestreo Aleatorio<br>(Seed=42)"]
+        EXP --> CSV1["📊 Directorio de Datos<br><code>data/muestra_e14_segunda<br>_vuelta.csv</code> (n=383)"]
     end
 
     subgraph Script2 [" Scraping y Descarga Concurrente (src/scraper/scraper_e14.py) "]
@@ -33,14 +33,14 @@ flowchart TD
         API["🌐 API Registraduría 2026<br>(index.json / divipole.json)"] <--> CACHE[("💾 Caché Local<br><code>data/.cache/</code>")]
         CSV1 --> LOAD["📥 Carga de Selección<br>& Normalización de Códigos"]
         CACHE --> LOAD
-        LOAD --> RESOLV["🔍 Resolución Jerárquica<br>Depto ➔ Muni ➔ Zona ➔ Puesto ➔ Mesa"]
-        RESOLV --> POOL["⚡ ThreadPoolExecutor<br>(curl_cffi + Impersonación Chrome)"]
+        LOAD --> RESOLV["🔍 Resolución Jerárquica<br>Depto ➔ Muni ➔ Zona ➔<br>Puesto ➔ Mesa"]
+        RESOLV --> POOL["⚡ ThreadPoolExecutor<br>(curl_cffi + Impersonación<br>Chrome)"]
         
-        POOL --> PDF["📑 Almacenamiento Estructurado<br><code>data/{dd}/{mm}/{zz}/{dd}_{mm}_{zz}_{pp}_{mesa}.pdf</code>"]
-        POOL --> ERR["📝 Auditoría de Errores (Thread-Safe Lock)<br><code>data/errores_descarga.csv</code>"]
+        POOL --> PDF["📑 Almacenamiento Estructurado<br><code>data/{dd}/{mm}/{zz}/<br>{dd}_{mm}_{zz}_{pp}_{mesa}.pdf</code>"]
+        POOL --> ERR["📝 Auditoría de Errores<br>(Thread-Safe Lock)<br><code>data/errores_descarga.csv</code>"]
     end
 
-    M --> Script1
+    ORQ --> Script1
     Script1 --> Script2
 ```
 
