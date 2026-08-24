@@ -10,18 +10,38 @@ Este repositorio (por ahora) implementa la **Fase 1**: extracción de datos maes
 
 ## 1. Arquitectura del Flujo de Datos
 
+## 1. Arquitectura del Flujo de Datos
+
 ```mermaid
 flowchart TD
-    A["📄 PDF DIVIPOL 2026"] -->|Conversión Tabular<br>& Saneamiento| B[("🗄️ Supabase (PostgreSQL)<br>Tabla: divipole_regis")]
-    
-    B -->|src/ingestion/<br>extract_e14_sample.py| C["⚙️ Filtro (dd != 88)<br>Cochran 95%/5%<br>Estratificación Proporcional"]
-    
-    C --> D["📊 Contrato de Datos<br>data/muestra_e14_segunda_vuelta.csv<br>(n = 383)"]
-    
-    D -->|src/scraper/<br>scraper_e14.py| E["🔄 Resolución Árbol<br>DIVIPOLE JSON<br>Index Map ➔ Concurrencia<br>curl_cffi"]
-    
-    E --> F["📑 Actas E-14 en PDF<br>/data/{dd}/{mm}/{zz}/..."]
-    E --> G["📝 Auditoría Thread-Safe<br>data/errores_descarga.csv"]
+    subgraph ORQ [" Orquestador Principal (main.py) "]
+        direction TB
+        M["🚀 Inicio del Pipeline<br><code>main.py</code>"]
+    end
+
+    subgraph [" Ingestión y Muestreo (src/ingestion/extract_e14_sample.py) "]
+        direction TB
+        SB[("🗄️ Supabase (PostgreSQL)<br>Tabla: divipole_regis")] --> EXT["⚙️ Extracción Paginada<br>& Filtro Consular (dd != 88)"]
+        EXT --> STRAT["📐 Estratificación (zz)<br>Urbano / Rural / Cárcel"]
+        STRAT --> COCH["🧮 Tamaño Muestral (Cochran)<br>95% Confianza | 5% Error"]
+        COCH --> EXP["🔀 Expansión a Nivel Mesa<br>& Muestreo Aleatorio (Seed=42)"]
+        EXP --> CSV1["📊 Contrato de Datos<br><code>data/muestra_e14_segunda_vuelta.csv</code> (n=383)"]
+    end
+
+    subgraph [" Scraping y Descarga Concurrente (src/scraper/scraper_e14.py) "]
+        direction TB
+        API["🌐 API Registraduría 2026<br>(index.json / divipole.json)"] <--> CACHE[("💾 Caché Local<br><code>data/.cache/</code>")]
+        CSV1 --> LOAD["📥 Carga de Selección<br>& Normalización de Códigos"]
+        CACHE --> LOAD
+        LOAD --> RESOLV["🔍 Resolución Jerárquica<br>Depto ➔ Muni ➔ Zona ➔ Puesto ➔ Mesa"]
+        RESOLV --> POOL["⚡ ThreadPoolExecutor<br>(curl_cffi + Impersonación Chrome)"]
+        
+        POOL --> PDF["📑 Almacenamiento Estructurado<br><code>data/{dd}/{mm}/{zz}/{dd}_{mm}_{zz}_{pp}_{mesa}.pdf</code>"]
+        POOL --> ERR["📝 Auditoría de Errores (Thread-Safe Lock)<br><code>data/errores_descarga.csv</code>"]
+    end
+
+    M --> Ingestión y Muestreo
+    Ingestión y Muestreo --> Scraping y Descarga Concurrente
 ```
 
 ---
