@@ -1,2 +1,31 @@
 __pycache__/
 *.pyc
+query_create.txt
+requirements_freeze.txt
+# Entornos virtuales y Python
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+env/
+venv/
+
+# Variables de entorno y secretos (en cualquier subcarpeta)
+**/.env
+*.env
+.env.*
+
+# Artefactos de scraping y datos pesados
+data/.cache/
+#data/errores_descarga.csv
+data/[0-9][0-9]/
+data/**/*.pdf
+*.pdf
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# IDEs
+.vscode/
+.idea/
