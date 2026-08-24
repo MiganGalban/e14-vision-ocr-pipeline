@@ -19,7 +19,7 @@ flowchart TD
         M["🚀 Inicio del Pipeline<br><code>main.py</code>"]
     end
 
-    subgraph [" Ingestión y Muestreo (src/ingestion/extract_e14_sample.py) "]
+    subgraph Script1 [" Ingestión y Muestreo (src/ingestion/extract_e14_sample.py) "]
         direction TB
         SB[("🗄️ Supabase (PostgreSQL)<br>Tabla: divipole_regis")] --> EXT["⚙️ Extracción Paginada<br>& Filtro Consular (dd != 88)"]
         EXT --> STRAT["📐 Estratificación (zz)<br>Urbano / Rural / Cárcel"]
@@ -28,7 +28,7 @@ flowchart TD
         EXP --> CSV1["📊 Contrato de Datos<br><code>data/muestra_e14_segunda_vuelta.csv</code> (n=383)"]
     end
 
-    subgraph [" Scraping y Descarga Concurrente (src/scraper/scraper_e14.py) "]
+    subgraph Script2 [" Scraping y Descarga Concurrente (src/scraper/scraper_e14.py) "]
         direction TB
         API["🌐 API Registraduría 2026<br>(index.json / divipole.json)"] <--> CACHE[("💾 Caché Local<br><code>data/.cache/</code>")]
         CSV1 --> LOAD["📥 Carga de Selección<br>& Normalización de Códigos"]
@@ -40,8 +40,8 @@ flowchart TD
         POOL --> ERR["📝 Auditoría de Errores (Thread-Safe Lock)<br><code>data/errores_descarga.csv</code>"]
     end
 
-    M --> Ingestión y Muestreo
-    Ingestión y Muestreo --> Scraping y Descarga Concurrente
+    M --> Script1
+    Script1 --> Script2
 ```
 
 ---
