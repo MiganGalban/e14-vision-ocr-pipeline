@@ -8,9 +8,6 @@ Este repositorio (por ahora) implementa la **Fase 1**: extracción de datos maes
 
 ## 1. Arquitectura del Flujo de Datos
 
-## 1. Arquitectura del Flujo de Datos
-
-## 1. Arquitectura del Flujo de Datos
 
 ```mermaid
 flowchart TD
@@ -114,8 +111,12 @@ e14-vision-ocr-pipeline/
 ├── README.md
 └── requirements.txt
 
-4. Instalación y Ejecución
-4.1. Clonar el repositorio y configurar el entorno
+---
+
+## 4. Instalación y Ejecución
+
+
+### 4.1. Clonar el repositorio y configurar el entorno
 
     git clone [https://github.com/tu-usuario/e14-vision-ocr-pipeline.git](https://github.com/tu-usuario/e14-vision-ocr-pipeline.git)
     cd e14-vision-ocr-pipeline
@@ -124,7 +125,7 @@ e14-vision-ocr-pipeline/
     pip install -r requirements.txt (Se cargaron dos archivos)
     pip install -e .
 
-4.2. Configurar variables de entorno
+### 4.2. Configurar variables de entorno
 Previamente cargada una tabla en supabase con el nombre de divipole_regis con 
 la data que esta en "..\data\divipole_2026.csv"
 Crea un archivo .env en la raíz a partir de la plantilla:
@@ -132,7 +133,7 @@ Crea un archivo .env en la raíz a partir de la plantilla:
     SUPABASE_URL="[https://tu-proyecto.supabase.co](https://tu-proyecto.supabase.co)"
     SUPABASE_KEY="tu-key"
 
-4.3. Ejecución del Pipeline
+### 4.3. Ejecución del Pipeline
     Ejecución del pipeline completo de Fase 1 (Generación de muestra y descarga dirigida de PDFs):
 
     python main.py
