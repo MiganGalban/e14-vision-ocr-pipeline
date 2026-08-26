@@ -2,7 +2,7 @@
 
 Pipeline modular de ingeniería de datos y diseño experimental desarrollado para la digitalización automatizada y extracción de datos mediante Visión por Computadora OCR (Optical Character Recognition) y HTR (Handwritten Text Recognition) de formularios electorales E-14 (Segunda Vuelta Presidencial 2026, Colombia).
 
-Este repositorio (por ahora) implementa la **Fase 1**: extracción de datos maestros desde PostgreSQL, muestreo probabilístico estratificado ($n = 383$) y un motor de web scraping concurrente y dirigido.
+Este repositorio (por ahora) implementa la **Fase 1** que corresponde a la extracción de datos maestros desde PostgreSQL, muestreo probabilístico estratificado ($n = 383$) y un motor de web scraping concurrente y dirigido.
 
 ---
 
@@ -81,6 +81,33 @@ $$n = \frac{N \cdot Z^2 \cdot p \cdot q}{e^2 \cdot (N - 1) + Z^2 \cdot p \cdot q
 
 ---
 
+### Demostración Interactiva (`notebooks/`)
+
+Para auditar y visualizar la ejecución paso a paso de este pipeline sin necesidad de clonar el repositorio, instalar dependencias ni configurar credenciales de Supabase, consulta el notebook interactivo con **salidas y logs pre-renderizados**:
+
+**[`notebooks/01_extract_sample.ipynb`](notebooks/01_extract_sample.ipynb)** *(o abre directamente en GitHub)*
+
+#### Contenido y Resultados Auditables en el Notebook:
+
+1. **Ingestión desde Supabase:**
+   * Extracción paginada de **13.742 puestos** de votación de la base de datos DIVIPOLE.
+   * Filtro y saneamiento: Exclusión de consulados (`dd = '88'`), consolidando un universo doméstico de **118.346 mesas**.
+2. **Estratificación y Cálculo Muestral:**
+   * Clasificación de zonas operativas mediante codificación oficial `zz` (`urbano`, `rural`, `carcel`).
+   * Aplicación de la fórmula de **Cochran para poblaciones finitas** ($N = 118.346$, Confianza 95%, Margen de error $\pm 5\%$), determinando $n = 383$.
+   * Asignación proporcional de cuotas:
+     * **Urbano:** 319 mesas (83.50%)
+     * **Rural:** 63 mesas (16.36%)
+     * **Cárcel:** 1 mesa (0.14%)
+3. **Muestreo Atómico y Persistencia:**
+   * Expansión del marco muestral desde nivel puesto a nivel atómico de mesa individual y muestreo aleatorio reproducible (`random_state=42`).
+   * Exportación del contrato de datos a `data/muestra_e14_segunda_vuelta.csv`.
+4. **Scraping y Descarga Concurrente:**
+   * Resolución del árbol jerárquico JSON contra los endpoints oficiales de la Registraduría.
+   * Ejecución multihilo (`ThreadPoolExecutor`) con validación de cabecera binaria `%PDF` y persistencia en disco.
+
+---
+
 ## 3. Estructura del Repositorio
 
 ```text
@@ -89,13 +116,14 @@ e14-vision-ocr-pipeline/
 │   ├── divipole_2026.csv                   # Estructura maestra nacional
 │   └── muestra_e14_segunda_vuelta.csv      # Muestra probabilística n=383
 ├── notebooks/
-│   ├── e14_extraccion_muestra.ipynb        # EDA y experimentación interactiva
+│   ├── .env
+│   ├── 01_extract_sample.ipynb             # Demostración interactiva
 │   └── e14_vision_ocr_pipeline.ipynb       # (En curso) Pipeline de visión artificial y OCR
 ├── src/
 │   ├── __init__.py
 │   ├── ingestion/
 │   │   ├── __init__.py
-│   │   └── e14_extraccion_muestra.py       # Lógica de muestreo y conexión Supabase
+│   │   └── extract_e14_sample.py       # Lógica de muestreo y conexión Supabase
 │   ├── scraper/
 │   │   ├── __init__.py
 │   │   └── scraper_e14.py                  # Scraper asíncrono y auditoría
@@ -105,6 +133,7 @@ e14-vision-ocr-pipeline/
 │       ├── tools.py                        # (En curso)Segmentación de ROI
 │       ├── ocr.py                          # (En curso)Inferencia OCR / HTR
 │       └── view.py                         # (En curso)Visualización de crops
+├── .env
 ├── .gitignore
 ├── main.py                                 # Ejecución de pipeline end-to-end
 ├── pyproject.toml
