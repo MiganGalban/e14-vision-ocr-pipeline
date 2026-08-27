@@ -45,8 +45,8 @@ flowchart TD
 ## 2. Componentes del Sistema
 
 ### Módulo de Ingestión y Muestreo (`src/ingestion/`)
-* **Persistencia Relacional:** Conexión paginada contra **Supabase (PostgreSQL)** sobre la tabla `divipole_regis`.
-* **Delimitación del Universo:** Filtrado estricto de mesas que no se encontraron en (https://escrutinios2vueltapresidente2026.registraduria.gov.co/actas-e14) para este caso consulares (`dd == '88'`), esto con el fin de garantizar la trazabilidad del dataset frente a datos de auditoría oficiales.
+* **Persistencia Relacional:** Conexión paginada contra **Supabase (PostgreSQL)** sobre la tabla `divipole_regis`; esta tabla fue generada a partir de un PDF oficial de la registraduria **[divipole_definitiva_2026.pdf](https://www.registraduria.gov.co/IMG/pdf/divipole_definitiva_2026.pdf)**, que fue previamente convertido de formato PDF a Excel con la herramienta online de **[Adobe Acrobat](https://acrobat.adobe.com/link/acrobat/pdf-to-excel/)** y posteriormente subida a Supabase en formato csv para la generacion automatica de dicha tabla `divipole_regis`.
+* **Delimitación del Universo:** Filtrado estricto de mesas que no se encontraron en (https://escrutinios2vueltapresidente2026.registraduria.gov.co/actas-e14), para este caso consulares (`dd == '88'`), esto con el fin de garantizar la trazabilidad del dataset frente a datos de auditoría oficiales.
   * **Puestos procesados:** 13.489
   * **Universo estadístico ($N$):** 118.346 mesas.
 * **Diseño Experimental (Fórmula de Cochran):**
