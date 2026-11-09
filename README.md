@@ -46,7 +46,7 @@ flowchart TD
 
 ### Módulo de Ingestión y Muestreo (`src/ingestion/`)
 * **Persistencia Relacional:** Conexión paginada contra **Supabase (PostgreSQL)** sobre la tabla `divipole_regis`; esta tabla fue generada a partir de un PDF oficial de la registraduria **[divipole_definitiva_2026.pdf](https://www.registraduria.gov.co/IMG/pdf/divipole_definitiva_2026.pdf)**, que fue previamente convertido de formato PDF a Excel con la herramienta online de **[Adobe Acrobat](https://acrobat.adobe.com/link/acrobat/pdf-to-excel/)** y posteriormente subida a Supabase en formato csv para la generacion automatica de dicha tabla `divipole_regis`.
-* **Delimitación del Universo:** Filtrado estricto de mesas que no se encontraron en (https://escrutinios2vueltapresidente2026.registraduria.gov.co/actas-e14), para este caso consulares (`dd == '88'`), esto con el fin de garantizar la trazabilidad del dataset frente a datos de auditoría oficiales.
+* **Delimitación del Universo:** Filtrado estricto de mesas que no se encontraron en (https://escrutinios2vueltapresidente2026.registraduria.gov.co/actas-e14), para este caso consulares (`dd == '88'`), se retiraron estas mesas con el fin de garantizar la trazabilidad del dataset frente a datos de auditoría oficiales.
   * **Puestos procesados:** 13.489
   * **Universo estadístico ($N$):** 118.346 mesas.
 * **Diseño Experimental (Fórmula de Cochran):**
@@ -83,7 +83,7 @@ $$n = \frac{N \cdot Z^2 \cdot p \cdot q}{e^2 \cdot (N - 1) + Z^2 \cdot p \cdot q
 
 ### Demostración Interactiva (`notebooks/`)
 
-Para auditar y visualizar la ejecución paso a paso de este pipeline sin necesidad de clonar el repositorio, instalar dependencias ni configurar credenciales de Supabase, consulta el notebook interactivo con **salidas y logs pre-renderizados**:
+Para auditar y visualizar la ejecución paso a paso de este pipeline con comentarios, sin necesidad de clonar el repositorio, instalar dependencias ni configurar credenciales de Supabase, consulta el notebook interactivo con **salidas y logs pre-renderizados**:
 
 **[`notebooks/01_extract_sample.ipynb`](notebooks/01_extract_sample.ipynb)** *(o abre directamente en GitHub)*
 
@@ -117,7 +117,7 @@ e14-vision-ocr-pipeline/
 │   └── muestra_e14_segunda_vuelta.csv      # Muestra probabilística n=383
 ├── notebooks/
 │   ├── .env
-│   ├── 01_extract_sample.ipynb             # Demostración interactiva
+│   ├── 01_extract_sample.ipynb             # Demostración interactiva Fase 1
 │   └── e14_vision_ocr_pipeline.ipynb       # (En curso) Pipeline de visión artificial y OCR
 ├── src/
 │   ├── __init__.py
@@ -129,7 +129,7 @@ e14-vision-ocr-pipeline/
 │   │   └── scraper_e14.py                  # Scraper asíncrono y auditoría
 │   └── processing/
 │       ├── __init__.py
-│       ├── preprocess.py                   # (En curso)Homografía y rectificación
+│       ├── preprocess.py                   # (En curso)Corrección de perspectiva/inclinación
 │       ├── tools.py                        # (En curso)Segmentación de ROI
 │       ├── ocr.py                          # (En curso)Inferencia OCR / HTR
 │       └── view.py                         # (En curso)Visualización de crops
