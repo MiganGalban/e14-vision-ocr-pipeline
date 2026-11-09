@@ -6,136 +6,145 @@ import matplotlib.ticker as mtick
 
 
 
-def view_all_perc(img_alineada, w=12, h=18):
+def plot_aligned_grid(aligned_img: np.ndarray, width_in: int = 12, 
+                        height_in: int = 18) -> None:
     """
-    Muestra la imagen con grid en porcentajes por cada lado.
+    Muestra la imagen alineada con una cuadrícula calibrada en porcentajes (0% a 100%).
 
     Args:
-        img_alineada (numpy_array): La imagen ya preprocesada
-        w (int, optional): Ancho de la figura. Defaults to 12.
-        h (int, optional): Alto de la figura. Defaults to 18.
+        aligned_img (np.ndarray): Imagen preprocesada a visualizar.
+        width_in (int, opcional): Ancho de la figura en pulgadas. Por defecto es 12.
+        height_in (int, opcional): Alto de la figura en pulgadas. Por defecto es 18.
     """
-    alto, ancho = img_alineada.shape[:2]
-    print(f"Dimensiones de la imagen: Alto = {alto}, Ancho = {ancho}")
-    plt.figure(figsize=(w, h))
-    plt.imshow(img_alineada, cmap='gray')
-    plt.grid(True, color='red', linestyle='-', linewidth=0.2)
+    height, width = aligned_img.shape[:2]
+    print(f"Dimensiones de la imagen: Alto = {height}, Ancho = {width}")
+    plt.figure(figsize=(width_in, height_in))
+    plt.imshow(aligned_img, cmap="gray")
+    plt.grid(True, color="red", linestyle="-", linewidth=0.2)
+
 
     # Definimos los ticks y agregamos la rotación
-    plt.xticks(np.linspace(0, img_alineada.shape[1], 30 ))
-    plt.yticks(np.linspace(0, img_alineada.shape[0], 120))
+    plt.xticks(np.linspace(0, width, 30))
+    plt.yticks(np.linspace(0, height, 120))
 
-    plt.gca().xaxis.set_major_formatter( mtick.FuncFormatter(lambda x, pos:
-                            f"{(x / img_alineada.shape[1] * 100):.2f}"))
+    plt.gca().xaxis.set_major_formatter( mtick.FuncFormatter(lambda x, _: 
+                                        f"{(x / width * 100):.2f}") )
 
-    plt.gca().yaxis.set_major_formatter( mtick.FuncFormatter(lambda y, pos:
-                            f"{(y / img_alineada.shape[0] * 100):.2f}"))
+    plt.gca().yaxis.set_major_formatter( mtick.FuncFormatter(lambda y, _:
+                                        f"{(y / height * 100):.2f}") )
     
     
     # Configuración para reflejar ejes en los 4 lados
-    plt.gca().tick_params(axis="x", labelrotation=90,
-                        top=True, bottom=True,
-                        labeltop=True, labelbottom=True,)
-    plt.gca().tick_params(axis="y",
-                        left=True, right=True,
-                        labelleft=True, labelright=True,)
+    plt.gca().tick_params( axis="x", labelrotation=90, 
+                            top=True, bottom=True, 
+                            labeltop=True, labelbottom=True )
+    plt.gca().tick_params( axis="y", 
+                            left=True, right=True, 
+                            labelleft=True, labelright=True )
     
     plt.xlabel("Eje X (Porcentaje)")
     plt.ylabel("Eje Y (Porcentaje)")
-    plt.title("Mapa de Píxeles del E-14 Alineado (Etiquetas Rotadas)")
+    plt.title("Mapa de Píxeles del E-14 Alineado")
     plt.show()
 
-def view_lite(img_muestra, w=6, h=3):
+def plot_crop_lite(sample_img: np.ndarray, width_in: int = 6, 
+                    height_in: int = 3) -> None:
     """
-    Muestra la imagen con grid, en pixeles, predef para algo mas sencillo.
+    Muestra un recorte de imagen individual con cuadrícula en píxeles.
 
     Args:
-        img_alineada (numpy_array): La imagen ya preprocesada
-        w (int, optional): Ancho de la figura. Defaults to 6.
-        h (int, optional): Alto de la figura. Defaults to 3.    
+        sample_img (np.ndarray): Recorte de imagen a visualizar.
+        width_in (int, opcional): Ancho de la figura en pulgadas. Por defecto es 6.
+        height_in (int, opcional): Alto de la figura en pulgadas. Por defecto es 3.
     """
-    plt.figure(figsize=(w, h), layout='constrained')
-    plt.imshow(img_muestra, cmap='gray')
-    plt.grid(True, color='red', linestyle='-', linewidth=0.5)
+    plt.figure(figsize=(width_in, height_in), layout="constrained")
+    plt.imshow(sample_img, cmap="gray")
+    plt.grid(True, color="red", linestyle="-", linewidth=0.5)
 
     # Definimos los ticks y agregamos la rotación
-    plt.xticks(np.arange(0, img_muestra.shape[1], 50), rotation=90)
-    plt.yticks(np.arange(0, img_muestra.shape[0], 50))
+    plt.xticks(np.arange(0, sample_img.shape[1], 50), rotation=90)
+    plt.yticks(np.arange(0, sample_img.shape[0], 50))
 
     plt.xlabel("Eje X (Columnas)")
     plt.ylabel("Eje Y (Filas)")
     plt.show()
 
-def view_cells(img_1, img_2, img_3, titulo="", w=10, h=4 ):
+def plot_three_cells( img_1: np.ndarray, img_2: np.ndarray, img_3: np.ndarray, 
+                        title: str = "", width_in: int = 10, height_in: int = 4,
+                    ) -> None:
     """
-    Muestra las 3 celdas asociadas en una sola imagen.
+    Muestra en una fila las 3 casillas de dígitos asociadas a un campo de votación.
+
     Args:
-        img_1 (numpy_array): La imagen de la celda ya preprocesada
-        img_2 (numpy_array): La imagen de la celda ya preprocesada
-        img_3 (numpy_array): La imagen de la celda ya preprocesada
-        titulo (str, optional): El titulo de la seccion. Defaults to "".
-        w (int, optional): Ancho de la figura. Defaults to 10.
-        h (int, optional): Alto de la figura.. Defaults to 4.
+        img_1 (np.ndarray): Recorte de la centena (casilla 1).
+        img_2 (np.ndarray): Recorte de la decena (casilla 2).
+        img_3 (np.ndarray): Recorte de la unidad (casilla 3).
+        title (str, opcional): Título superior del grupo de celdas. Por defecto es "".
+        width_in (int, opcional): Ancho de la figura en pulgadas. Por defecto es 10.
+        height_in (int, opcional): Alto de la figura en pulgadas. Por defecto es 4.
     """
 
-    imagenes = [img_1, img_2, img_3]
-    fig, axes = plt.subplots(1, 3, figsize=(w, h), layout='constrained')
+    images = [img_1, img_2, img_3]
+    fig, axes = plt.subplots(1, 3, figsize=(width_in, height_in), layout="constrained")
 
 
-    for i, ax in enumerate(axes):
-        img = imagenes[i]
-        ax.imshow(img, cmap='gray')
-        ax.set_title(f"Celda {i+1}", pad=30, fontsize=12)
+    for idx, ax in enumerate(axes):
+        img = images[idx]
+        ax.imshow(img, cmap="gray")
+        ax.set_title(f"Celda {idx + 1}", pad=30, fontsize=12)
 
         #Definir posiciones de ticks independientes para cada imagen
         ax.set_xticks(np.linspace(0, img.shape[1], 4))  # 10 ticks en X
         ax.set_yticks(np.linspace(0, img.shape[0], 4))  # 10 ticks en Y
 
         #Formateadores de porcentaje (im=img asegura el enlace correcto del tamaño)
-        ax.xaxis.set_major_formatter( mtick.FuncFormatter(
-                            lambda x, pos, im=img: f"{(x / im.shape[1]):.1f}") )
-        ax.yaxis.set_major_formatter( mtick.FuncFormatter(
-                            lambda y, pos, im=img: f"{(y / im.shape[0]):.1f}") )
+        ax.xaxis.set_major_formatter( mtick.FuncFormatter(lambda x, _, im=img:
+                                        f"{(x / im.shape[1]):.1f}") )
+        ax.yaxis.set_major_formatter( mtick.FuncFormatter(lambda y, _, im=img: 
+                                        f"{(y / im.shape[0]):.1f}") )
 
         #Configurar marcas y rotación en eje X (Arriba y Abajo)
-        ax.tick_params( axis="x", top=False, bottom=True, 
-                        labeltop=False, labelbottom=True, labelrotation=90, )
+        ax.tick_params( axis="x", 
+                        top=False, bottom=True, 
+                        labeltop=False, labelbottom=True, labelrotation=90 )
 
         #Configurar marcas en eje Y (Izquierda y Derecha)
-        ax.tick_params( axis="y", left=True, right=False, 
-                        labelleft=True, labelright=False, )
-        ax.grid(True, color='red', linestyle='-', linewidth=0.5)
+        ax.tick_params( axis="y", 
+                        left=True, right=False, 
+                        labelleft=True, labelright=False  )
+        ax.grid(True, color="red", linestyle="-", linewidth=0.5)
 
     # Ajusta el espacio entre subplots para evitar solapamiento de etiquetas
     #plt.tight_layout(pad=3.0)
-    fig.suptitle(titulo, fontweight='bold')
+    fig.suptitle(title, fontweight="bold")
     plt.show()
 
 
-def view_crops(dict_cut):
+def plot_roi_dictionary(crops_dict: dict[str, np.ndarray]) -> None:
     """
-    Funcion para gestionar la visualizacion del diccionario que sale de los recortes.
+    Itera y grafica un diccionario de recortes agrupando casillas triples e individuales.
 
     Args:
-        dict_cut (Dict): Un diccionario con el nombre de la zona y el recorte.
+        crops_dict (dict[str, np.ndarray]): Diccionario de zonas generado por `tools.py`.
     """
-
-    crops_com  = ['Metadatos_Encabezado', 'Nivelacion_Mesa', 'QR', 'Barras', 'Divipole', 'Codigo',
-                    'Observ_jud', 'Re_count_si', 'Re_count_no', 'Count_req_by', 'On_behalf_of']
-    crops_cell = ['Votos_1', 'Votos_2', 'Total_E11', 'Total_Urna', 'Total_Incinerados', 
-                    'V_Blanco', 'V_Nulos', 'V_Sin_Marcar', 'Suma_Total']
-    save_cell = set()
-    for k, v in dict_cut.items():
+    common_crops = { "Metadatos_Encabezado", "Nivelacion_Mesa", "QR", "Barras",
+                    "Divipole", "Codigo", "Observ_jud", "Re_count_si",
+                    "Re_count_no", "Count_req_by", "On_behalf_of",  }
+    
+    triple_cell_prefixes = { "Votos_A", "Votos_B", "Total_E11", "Total_Urna", "Total_Incinerados", 
+                            "V_Blanco", "V_Nulos", "V_Sin_Marcar", "Suma_Total",  }
+    rendered_prefixes: set[str] = set()
+    for key, crop in crops_dict.items():
+        prefix = key[:-2]
         #print(k, ' == ', crops_com)
-        if k in crops_com:
-            view_lite(dict_cut[k])
-        elif (k[:-3] == 'Firma') or (k[:-6] == 'Firma') :
-            view_lite(dict_cut[k])
-        elif (k[:-2] in crops_cell) and (k[:-2] not in save_cell):
-            save_cell.add(k[:-2])
-            view_cells(dict_cut[k[:-2]+'_1'], dict_cut[k[:-2]+'_2'], dict_cut[k[:-2]+'_3'], k)
-        elif k[:-2] in save_cell:
-            print(k, 'Ya se imprimio')
+        if key in common_crops or key.startswith("Firma"):
+            plot_crop_lite(crop)
+        elif prefix in triple_cell_prefixes and prefix not in rendered_prefixes:
+            rendered_prefixes.add(prefix)
+            plot_three_cells(   crops_dict[f"{prefix}_1"],
+                                crops_dict[f"{prefix}_2"],
+                                crops_dict[f"{prefix}_3"],
+                                title=prefix,    )
         else:
             print('Problema visualizando diccionario de recortes')
 
