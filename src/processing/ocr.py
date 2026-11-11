@@ -1,4 +1,8 @@
 ### HWR_Colab_2.ipynb guardado en Drive
+import os
+from typing import Any
+from dotenv import load_dotenv
+
 import easyocr
 import torch
 import torch.nn.functional as F
@@ -6,6 +10,8 @@ from PIL import Image
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 import numpy as np
 import cv2
+
+from src.processing.tools import parse_divipole_text
 
 
 #---------------------------------------------------------------------------#---------------------------------------------------------------------------
@@ -230,3 +236,68 @@ def evaluate_omr_cell(  binary_crop: np.ndarray, threshold_pct: float = 5.0,
     is_marked = fill_percentage >= threshold_pct
 
     return is_marked, round(fill_percentage, 2)
+
+def extract_e14_ocr_data( rois_list: list[dict[str, np.ndarray]], reader: easyocr.Reader,
+                            device: torch.device | str, vocab_token_ids: dict[str, list[int]],
+                            processor: TrOCRProcessor, model: VisionEncoderDecoderModel,
+                        ) -> tuple[dict[str, Any] | None, dict[str, str | None]]:
+    
+    """
+    Ejecuta EasyOCR, TrOCR y OMR sobre los recortes de un formulario E-14.
+
+    Args:
+        rois_list (list[dict[str, np.ndarray]]): Lista de 4 diccionarios generada por `process_e14_form`.
+        reader (easyocr.Reader): Instancia cargada de EasyOCR.
+        device (torch.device | str): Dispositivo de cómputo ('cuda' o 'cpu').
+        vocab_token_ids (dict[str, list[int]]): Mapa de tokens BPE del vocabulario.
+        processor (TrOCRProcessor): Procesador de TrOCR.
+        model (VisionEncoderDecoderModel): Modelo TrOCR en modo evaluación.
+
+    Returns:
+        tuple[dict[str, Any] | None, dict[str, str | None]]: Tupla con (diccionario consolidado
+        de datos extraídos, diccionario DIVIPOLE página 1). En caso de excepción retorna (None, {}).
+    """
+    try:
+        divipole_p1 = parse_divipole_text(read_text_region(rois_list[0]["Divipole"], reader))
+        divipole_p2 = parse_divipole_text(read_text_region(rois_list[1]["Divipole"], reader))
+
+        review_flag = {"manual": divipole_p1 != divipole_p2}
+
+        barcode_p1_raw = read_text_region(rois_list[0]["Barras"], reader)[0]
+        barcode_p1 = {"Barras_1": barcode_p1_raw["text"], "s_barras_1": barcode_p1_raw["score"]}
+
+        barcode_p2_raw = read_text_region(rois_list[1]["Barras"], reader)[0]
+        barcode_p2 = {"Barras_2": barcode_p2_raw["text"], "s_barras_2": barcode_p2_raw["score"]}
+
+        code_raw = read_text_region(rois_list[0]["Codigo"], reader)[0]
+        code_clean = str(code_raw["text"]).replace(" ", "").replace("-", "")
+        form_code = {"Codigo": code_clean, "s_codigo": code_raw["score"]}
+
+        handwritten_cells: dict[str, str | float] = {}
+        for label, crop in rois_list[2].items():
+            top_pred = predict_handwritten_cell(
+                crop, label, device, vocab_token_ids, processor, model, top_k=1
+            )[0]
+            field_name = str(top_pred["field"])
+            handwritten_cells[field_name] = str(top_pred["prediction"])
+            handwritten_cells[f"s_{field_name}"] = float(top_pred["score"])
+
+        omr_cells = {
+            label: evaluate_omr_cell(crop, threshold_pct=5.0, inner_margin_pct=0.0)
+            for label, crop in rois_list[3].items()
+        }
+
+        consolidated_data = (
+            review_flag
+            | form_code
+            | barcode_p1
+            | barcode_p2
+            | divipole_p1
+            | handwritten_cells
+            | omr_cells
+        )
+        return consolidated_data, divipole_p1
+
+    except Exception as err:
+        print(f"[ERROR OCR] Fallo procesando regiones del formulario: {err}")
+        return None, {}
