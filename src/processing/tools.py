@@ -1,9 +1,13 @@
+from pathlib import Path
 import cv2
 import numpy as np
+import pandas as pd
 from pdf2image import convert_from_path
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import re
+
+from src.processing.preprocess import pdf_to_images
 
 
 def extract_common_rois(aligned_img: np.ndarray) -> dict[str, np.ndarray]:
@@ -216,3 +220,115 @@ def parse_divipole_text(ocr_items: list[dict[str, str | float]]) -> dict[str, st
                 
     return parsed_vars
 
+def clean_float(val: float | int | np.floating | None, precision: int = 2) -> float:
+    """Convierte un valor numérico o numpy.float a float nativo redondeado.
+
+    Args:
+        val (float | int | np.floating | None): Valor numérico a normalizar.
+        precision (int, opcional): Número de decimales a conservar. Por defecto es 2.
+
+    Returns:
+        float: Valor flotante redondeado, o 0.0 si la entrada es None.
+    """
+    if val is None:
+        return 0.0
+    return round(float(val), precision)
+
+
+def consolidate_digits(d1: str, d2: str, d3: str) -> int:
+    """Consolida las predicciones de 3 casillas individuales en un número entero.
+
+    Ignora etiquetas como 'EN_BLANCO' o símbolos especiales, conservando únicamente
+    los caracteres numéricos.
+
+    Args:
+        d1 (str): Carácter predicho para las centenas (casilla 1).
+        d2 (str): Carácter predicho para las decenas (casilla 2).
+        d3 (str): Carácter predicho para las unidades (casilla 3).
+
+    Returns:
+        int: Valor entero consolidado, o 0 si ninguna casilla contiene dígitos.
+    """
+    raw_text = f"{d1}{d2}{d3}".strip()
+    digits = "".join(filter(str.isdigit, raw_text))
+    return int(digits) if digits else 0
+
+
+def normalize_code(value: str | int | None, length: int) -> str:
+    """Estandariza códigos DIVIPOLE aplicando mayúsculas y relleno de ceros a la izquierda.
+
+    Args:
+        value (str | int | None): Código original a normalizar.
+        length (int): Longitud objetivo del código cuando es numérico (ej. 2 o 3).
+
+    Returns:
+        str: Código limpio y normalizado, o cadena vacía si la entrada es None.
+    """
+    if value is None:
+        return ""
+    val_str = str(value).strip().upper()
+    if val_str.isdigit():
+        return val_str.zfill(length)
+    return val_str
+
+
+def scan_e14_pdfs(root_dir: str | Path) -> pd.DataFrame:
+    """Escanea recursivamente un directorio en busca de formularios PDF E-14 válidos.
+
+    Extrae las llaves estructurales (dd, mm, zz, pp, mesa) a partir del nombre de archivo.
+
+    Args:
+        root_dir (str | Path): Ruta del directorio base a escanear.
+
+    Raises:
+        FileNotFoundError: Si la ruta especificada no existe en el sistema de archivos.
+
+    Returns:
+        pd.DataFrame: DataFrame con columnas ['dd', 'mm', 'zz', 'pp', 'mesa', 'path'].
+    """
+    base_path = Path(root_dir)
+    if not base_path.exists():
+        raise FileNotFoundError(f"La ruta especificada no existe: {root_dir}")
+
+    e14_pattern = re.compile(
+        r"^(?P<dd>\d{2})_(?P<mm>\d{3})_(?P<zz>\d{2})_(?P<pp>[a-zA-Z0-9]{2})_(?P<mesa>\d{3,4})\.pdf$",
+        re.IGNORECASE,
+    )
+
+    records = []
+    for file_path in sorted(base_path.rglob("*")):
+        if file_path.is_file() and file_path.suffix.lower() == ".pdf":
+            match = e14_pattern.match(file_path.name)
+            if match:
+                record = match.groupdict()
+                record["path"] = str(file_path.resolve())
+                records.append(record)
+
+    df = pd.DataFrame(records)
+    if not df.empty:
+        df = df[["dd", "mm", "zz", "pp", "mesa", "path"]]
+
+    return df
+
+def process_e14_form(pdf_path: str | Path, debug: bool = False) -> list[dict[str, np.ndarray]] | None:
+    """Convierte un PDF E-14 en imágenes alineadas y extrae los diccionarios de ROIs de ambas páginas.
+
+    Args:
+        pdf_path (str | Path): Ruta del archivo PDF a procesar.
+        debug (bool, opcional): Activa visualización de depuración geométrica. Por defecto es False.
+
+    Returns:
+        list[dict[str, np.ndarray]] | None: Lista con 4 diccionarios de recortes
+        [encabezado_p1, encabezado_p2, casillas_p1, omr_p2], o None si falla la alineación.
+    """
+    aligned_pages = pdf_to_images(pdf_path, debug=debug)
+    if len(aligned_pages) < 2 or aligned_pages[0] is None or aligned_pages[1] is None:
+        return None
+
+    img_page_1, img_page_2 = aligned_pages[0], aligned_pages[1]
+    return [
+        extract_common_rois(img_page_1),
+        extract_common_rois(img_page_2),
+        extract_page1_rois(img_page_1),
+        extract_page2_rois(img_page_2),
+    ]
