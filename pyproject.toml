@@ -12,19 +12,20 @@ authors = [
     { name = "Migan Giuseppe Galban Pineda" }
 ]
 dependencies = [
-    curl_cffi==0.16.0,
-    easyocr==1.7.2,
-    matplotlib==3.11.1,
-    numpy==2.5.2,
-    opencv_python==5.0.0.93,
-    opencv_python_headless==5.0.0.93,
-    pandas==3.0.5,
-    pdf2image==1.17.0,
-    Pillow==12.3.0,
-    python-dotenv==1.2.3,
-    supabase==2.31.0,
-    torch==2.5.1+cu121,
-    transformers==5.13.1,
+    "curl_cffi>=0.7.0",
+    "easyocr>=1.7.1",
+    "matplotlib>=3.8.0",
+    "numpy>=1.26.0,<2.1.0",
+    "opencv-python-headless>=4.9.0",
+    "pandas>=2.2.0",
+    "pdf2image>=1.17.0",
+    "Pillow>=10.2.0",
+    "python-dotenv>=1.0.1",
+    "sentencepiece>=0.2.0",
+    "supabase>=2.4.0",
+    "torch>=2.2.0",
+    "torchvision>=0.17.0",
+    "transformers==4.46.3",
 ]
 
 [project.optional-dependencies]
@@ -34,4 +35,5 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["src*"]
