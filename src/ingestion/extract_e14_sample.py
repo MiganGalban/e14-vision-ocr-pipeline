@@ -1,16 +1,27 @@
 
-from dotenv import load_dotenv
-from supabase import create_client
-import pandas as pd
 import math
-
 import os
 from pathlib import Path
+from typing import Any
 
-def fetch_all_rows(supabase, table: str, columns: str, page_size: int = 1000) -> list[dict]:
-    """Supabase pagina resultados (limite ~1000 por request por defecto).
-    Esta función pagina hasta traer todo el universo de puestos."""
-    all_rows = []
+from dotenv import load_dotenv
+import pandas as pd
+from supabase import Client, create_client
+
+
+def fetch_all_rows(supabase, table: str, columns: str, page_size: int = 1000) -> list[dict[str, Any]]:
+    """Extrae todos los registros de una tabla en Supabase mediante paginación secuencial.
+
+    Args:
+        supabase (Client): Cliente autenticado de Supabase.
+        table (str): Nombre de la tabla objetivo en PostgreSQL.
+        columns (str): Columnas separadas por coma a consultar.
+        page_size (int, opcional): Límite de filas por petición (límite PostgREST = 1000).
+
+    Returns:
+        list[dict[str, Any]]: Lista consolidada con todos los registros de la tabla.
+    """
+    all_rows: list[dict[str, Any]] = []
     start = 0
     while True:
         # Se genera la Query para supabase
@@ -83,7 +94,7 @@ def get_sample_size(N: int, confidence: float = 0.95, margin: float = 0.05, p: f
     """
     z_table = {0.90: 1.645, 0.95: 1.96, 0.99: 2.576}
     z = z_table.get(confidence, 1.96)
-    q=p
+    q = 1.0 - p
     n = (N*(z**2)*p*q)/((margin**2)*(N-1)+(z**2)*p*q)
 
     # Otra forma partiendo desde el supuesto de infinito
@@ -113,21 +124,29 @@ def sample_voting_tables(df: pd.DataFrame, stratum_allocation: pd.Series) -> pd.
 
     Returns:
         pd.DataFrame: Conjunto de datos final con las mesas seleccionadas aleatoriamente,
-        con índice reiniciado y conservando las variables de ubicación y estrato.
+        reproducible (`random_state=42`), con índice reiniciado y conservando las variables de ubicación y estrato.
     """
     frames = []
-    for _, r in df.iterrows(): #No hay necesidad de guardar el indice
+    for _, row in df.iterrows(): #No hay necesidad de guardar el indice
         # Si el valor no es nulo guarde el valor de lo contrario guarde un 0 en num_voting_tables
-        num_voting_tables = int(r["mesas_domingo"]) if pd.notna(r["mesas_domingo"]) else 0
+        num_voting_tables = int(row["mesas_domingo"]) if pd.notna(row["mesas_domingo"]) else 0
         # Se guarda una lista de diccionarios con los datos de la fila, y se van
         # generando filas segun "num_voting_tables"
 
         for table_idx in range(1, num_voting_tables + 1):
-            frames.append({
-                "dd": r["dd"], "mm": r["mm"], "zz": r["zz"], "pp": r["pp"],
-                "departamento": r["departamento"], "municipio": r["municipio"],
-                "puesto": r["puesto"], "mesa": table_idx, "estrato": r["estrato"],
-            })
+            frames.append(
+                            {
+                                "dd": row["dd"],
+                                "mm": row["mm"],
+                                "zz": row["zz"],
+                                "pp": row["pp"],
+                                "departamento": row["departamento"],
+                                "municipio": row["municipio"],
+                                "puesto": row["puesto"],
+                                "mesa": table_idx,
+                                "estrato": row["estrato"],
+                            }
+                        )
 
     # Se pasa la lista de diccionarios a DataFrame, donde cada diccionario es una fila
     voting_tables_df = pd.DataFrame(frames)
@@ -149,7 +168,7 @@ def sample_voting_tables(df: pd.DataFrame, stratum_allocation: pd.Series) -> pd.
 
 def generate_e14_sample( table_supabase: str = "divipole_regis", 
             columns: str = "dd,mm,zz,pp,departamento,municipio,puesto,comuna,mesas_domingo",
-            confidence: float = 0.95, margin_error: float = 0.05, output_path: Path | str = None,
+            confidence: float = 0.95, margin_error: float = 0.05, output_path: Path | str | None = None,
             ) -> pd.DataFrame:
     """Orquesta el pipeline completo de extracción, estratificación, muestreo y exportación.
 
@@ -182,7 +201,14 @@ def generate_e14_sample( table_supabase: str = "divipole_regis",
         pd.DataFrame: DataFrame con la muestra aleatoria final de mesas seleccionadas.
     """
     # Autenticación y conexión con el cliente Supabase 
-    load_dotenv()
+        # Sube dos niveles desde src/ingestion/ hasta la raíz y concatena "data"
+        #   __file__               -->  .../e14/src/ingestion/extract_e14_sample.py
+        #   .resolve().parents[0]  -->  .../e14/src/ingestion
+        #   .resolve().parents[1]  -->  .../e14/src
+        #   .resolve().parents[2]  -->  .../e14 (raíz)
+    project_root = Path(__file__).resolve().parents[2]
+    load_dotenv(dotenv_path=project_root / ".env")
+    
     supabase_url = os.getenv("SUPABASE_URL")
     supabase_key = os.getenv("SUPABASE_KEY")
 
@@ -212,19 +238,19 @@ def generate_e14_sample( table_supabase: str = "divipole_regis",
     sample_df = sample_voting_tables(df, stratum_allocation)
 
     # Sube dos niveles desde src/ingestion/ hasta la raíz y concatena "data"
-    #   __file__               -->  .../e14/src/ingestion/e14_extraccion_muestra.py
+    #   __file__               -->  .../e14/src/ingestion/extract_e14_sample.py
     #   .resolve().parents[0]  -->  .../e14/src/ingestion
     #   .resolve().parents[1]  -->  .../e14/src
     #   .resolve().parents[2]  -->  .../e14 (raíz)
     #   / "data"               -->  .../e14/data
     #   / "muestra_e14_segunda_vuelta.csv"
 
-    if output_path is None:
-        output_path = ( Path(__file__).resolve().parents[2]
-                    / "data"
-                    / "muestra_e14_segunda_vuelta.csv"
-                    )
-
-    sample_df.to_csv(output_path, index=False, encoding="utf-8-sig")
+    target_path = (
+        Path(output_path)
+        if output_path is not None
+        else project_root / "data" / "muestra_e14_segunda_vuelta.csv"
+    )
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    sample_df.to_csv(target_path, index=False, encoding="utf-8-sig")
     return sample_df
 

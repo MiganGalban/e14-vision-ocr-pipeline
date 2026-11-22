@@ -3,7 +3,6 @@ import csv
 import json
 import time
 import random
-import threading
 from collections import defaultdict
 from curl_cffi import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -37,6 +36,7 @@ SAMPLE_CSV_PATH = os.path.join(BASE_DIR, "muestra_e14_segunda_vuelta.csv")
 
 BASE_URL = "https://escrutinios2vueltapresidente2026.registraduria.gov.co/"
 MAX_DOWNLOAD_WORKERS = 2  # Restringido a 1-2 para streaming a Google Drive
+MAX_RETRIES = 3
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -57,12 +57,12 @@ def init_error_log() -> None:
 
     Verifica la existencia de "ERRORS_CSV_PATH" en el sistema de archivos local y,
     en caso negativo, escribe la cabecera correspondiente:
-    ['Depto', 'Muni', 'Zona', 'Puesto', 'Mesa', 'Error', 'URL'].
+    ['Depto', 'Muni', 'Zona', 'Puesto', 'Mesa', 'Error', 'URL', "Timestamp"].
     """ 
     if not os.path.exists(ERRORS_CSV_PATH):
         with open(ERRORS_CSV_PATH, mode='w', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
-            writer.writerow(["Depto", "Muni", "Zona", "Puesto", "Mesa", "Error", "URL"])
+            writer.writerow(["Depto", "Muni", "Zona", "Puesto", "Mesa", "Error", "URL", "Timestamp"])
 
 
 def log_error(meta: tuple, type_error: str, url: str) -> None:
@@ -125,7 +125,7 @@ def load_selection(csv_path: str) -> dict:
             "o ajusta la variable SAMPLE_CSV_PATH."
         )
 
-    seletion = defaultdict(set)
+    selection = defaultdict(set)
     with open(csv_path, newline='', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -135,11 +135,11 @@ def load_selection(csv_path: str) -> dict:
                 normalize_code(row["zz"]),
                 normalize_code(row["pp"]),
             )
-            seletion[key].add(int(row["mesa"]))
+            selection[key].add(int(row["mesa"]))
 
-    total_tables = sum(len(v) for v in seletion.values())
-    print(f"[Selección] {len(seletion)} puesto(s) único(s) | {total_tables} mesa(s) a descargar")
-    return seletion
+    total_tables = sum(len(v) for v in selection.values())
+    print(f"[Selección] {len(selection)} puesto(s) único(s) | {total_tables} mesa(s) a descargar")
+    return selection
 
 
 def fetch_cached_json(url: str, local_filename: str):
@@ -184,8 +184,8 @@ def fetch_cached_json(url: str, local_filename: str):
         return None
 
 
-def download_pdf(url_pdf: str, destination_path: str, identifier: str, meta: tuple) -> str:
-    """Descarga y valida la integridad de un archivo PDF de acta electoral.
+def download_pdf(url_pdf: str, destination_path: Path, identifier: str, meta: tuple[str, ...], max_retries: int = MAX_RETRIES) -> str:
+    """Descarga y valida la integridad de un archivo PDF de acta electoral con reintentos.
 
     Aplica un retraso aleatorio (0.5 a 1.5 s) para mitigar bloqueos de tasa (rate limiting).
     Valida la firma mágica binaria (`%PDF`) del archivo recibido antes de persistirlo.
@@ -196,7 +196,7 @@ def download_pdf(url_pdf: str, destination_path: str, identifier: str, meta: tup
         destination_path (str): Ruta del sistema de archivos local para guardar el PDF.
         identifier (str): Etiqueta descriptiva para trazabilidad en logs de consola.
         meta (Tuple[str, ...]): Metadatos de ubicación geográfica de la mesa.
-
+        max_retries (int, opcional): Máximo de intentos ante fallos de red/HTTP. Por defecto es 3.
     Returns:
         str: Mensaje descriptivo con el estado final de la operación
             (Existente, Descargado, Falso PDF o Fallo de red).
@@ -204,78 +204,82 @@ def download_pdf(url_pdf: str, destination_path: str, identifier: str, meta: tup
     if os.path.exists(destination_path):
         return f"⏩ [PDF] Existente: {identifier}"
 
-    time.sleep(random.uniform(0.5, 1.5))
+    last_error = "Error_Desconocido"
 
-    try:
-        resp = requests.get(url_pdf, headers=HEADERS, impersonate="chrome110", timeout=20.0)
-        if resp.status_code == 200 and resp.content.startswith(b'%PDF'):
-            with open(destination_path, 'wb') as f:
-                f.write(resp.content)
-            return f"✅ [PDF] Descargado: {identifier}"
-        else:
-            log_error(meta, f"HTTP_{resp.status_code}_Falso_PDF", url_pdf)
-            return f"❌ [PDF] Falso PDF / HTTP {resp.status_code}: {identifier}"
-    except Exception as e:
-        log_error(meta, "Timeout_Descarga", url_pdf)
-        return f"⚠️ [PDF] Fallo de red: {identifier}"
+    for attempt in range(1, max_retries + 1):
+        # Jitter aleatorio para mitigar bloqueos por tasa de peticiones
+        time.sleep(random.uniform(0.5, 1.5) * attempt)
+
+        try:
+            resp = requests.get(url_pdf, headers=HEADERS, impersonate="chrome110", timeout=25.0)
+            if resp.status_code == 200 and resp.content.startswith(b"%PDF"):
+                with open(destination_path, "wb") as file:
+                    file.write(resp.content)
+                return f"✅ [PDF] Descargado: {identifier}"
+            last_error = f"HTTP_{resp.status_code}_Falso_PDF"
+        except Exception:
+            last_error = "Timeout_Descarga"
+
+    log_error(meta, last_error, url_pdf)
+    return f"❌ [PDF] Fallo tras {max_retries} intentos ({last_error}): {identifier}"
 
 
-def execute_scraper(SELECTION_CSV: str = SAMPLE_CSV_PATH):
-    """Orquesta la ejecución global del proceso de extracción en tres fases.
+def execute_scraper(selection_csv: str | Path = SAMPLE_CSV_PATH):
+    """Orquesta el scraping dirigido de actas E-14 en 3 fases: maestros, resolución y descarga.
 
     - **Fase 1**: Inicializa registros de error y obtiene los archivos maestros
-      (`index.json` y estructura `divipole.json`).
+        (`index.json` y estructura `divipole.json`).
     - **Fase 2**: Recorre el árbol jerárquico (depto -> muni -> zona -> puesto)
-      filtrando estrictamente los nodos presentes en el CSV de muestra, resuelve
-      las rutas relativas de los PDFs correspondientes a cada mesa y construye la
-      cola de descargas.
+        filtrando estrictamente los nodos presentes en el CSV de muestra, resuelve
+        las rutas relativas de los PDFs correspondientes a cada mesa y construye la
+        cola de descargas.
     - **Fase 3**: Ejecuta un pool de hilos (`ThreadPoolExecutor`) para procesar
-      las descargas en paralelo y genera el reporte final de completitud.
+        las descargas en paralelo y genera el reporte final de completitud.
 
     Args:
-        SELECTION_CSV (str, optional): Ruta al archivo CSV con la muestra de
+        selection_csv (str | Path, opcional): Ruta al archivo CSV con la muestra de
             mesas. Por defecto usa `SAMPLE_CSV_PATH`.
     """
     init_error_log()
-    seletion = load_selection(SELECTION_CSV)
+    selection = load_selection(selection_csv)
 
+    # Fase 1: Obtención de índices maestros de la API oficial
     print("\n[=== FASE 1: DESCARGA DE ESTRUCTURAS MAESTRAS ===]")
     index_map = fetch_cached_json(f"{BASE_URL}data/index.json", "index.json")
     divipole = fetch_cached_json(
         f"{BASE_URL}data/esc/v1/divipole/divipole_20260609_095453_471.json", "divipole.json"
     )
 
-    if not index_map or not divipole:
+    if not isinstance(index_map, dict) or not isinstance(divipole, dict):
         print("[-] Fallo crítico: No se obtuvo la estructura base.")
         return
 
     corporacion = "001"
-    pdf_tasks = []
-    positions_not_found = []
-    visited_keys = set()
+    pdf_tasks: list[tuple[str, Path, str, tuple[str, ...]]] = []
+    positions_not_found: list[tuple[str, str, str, str]] = []
+    visited_keys: set[tuple[str, str, str, str]] = set()
 
+    # Fase 2: Navegación jerárquica filtrada estrictamente a los puestos muestreados
     print("\n[=== FASE 2: RESOLUCIÓN DE RUTAS (SOLO PUESTOS SELECCIONADOS) ===]")
     departamentos = divipole.get("departamentos", {})
     for dept_code, dept_data in departamentos.items():
         dept_norm = normalize_code(dept_code)
 
-        municipios = dept_data.get("municipios", {})
-        for muni_code, muni_data in municipios.items():
+        for muni_code, muni_data in dept_data.get("municipios", {}).items():
             muni_norm = normalize_code(muni_code)
 
             for zona_code, zona_data in muni_data.get("zonas", {}).items():
                 zona_norm = normalize_code(zona_code)
 
-                for puesto_code, puesto_data in zona_data.get("puestos", {}).items():
+                for puesto_code, _ in zona_data.get("puestos", {}).items():
                     puesto_norm = normalize_code(puesto_code)
-
                     key = (dept_norm, muni_norm, zona_norm, puesto_norm)
-                    if key not in seletion:
-                        continue  # Filtro llevado hasta el puesto: ni se pide el JSON de mesas
+
+                    if key not in selection:
+                        continue
 
                     visited_keys.add(key)
-                    tables_needed = seletion[key]
-
+                    tables_needed = selection[key]
                     path_key = (
                         f"data/esc/v1/actas-documentos/{corporacion}/"
                         f"{dept_code}/{muni_code}/{zona_code}/{puesto_code}/mesas/"
@@ -290,23 +294,22 @@ def execute_scraper(SELECTION_CSV: str = SAMPLE_CSV_PATH):
 
                     names_json_tables = index_map[path_key]
                     url_json_tables = f"{BASE_URL}{path_key}{names_json_tables}"
-
                     print(
                         f"[*] Puesto seleccionado: {dept_code}/{muni_code}/{zona_code}/{puesto_code} "
                         f"({len(tables_needed)} mesa(s))"
                     )
 
                     tables = fetch_cached_json(url_json_tables, names_json_tables)
-                    if not tables:
+                    if not isinstance(tables, list):
                         for missing_table in tables_needed:
                             meta = (dept_code, muni_code, zona_code, puesto_code, str(missing_table).zfill(3))
                             log_error(meta, "Fallo_descarga_JSON_mesas", url_json_tables)
                         continue
 
-                    destination_path = os.path.join(BASE_DIR, dept_code, muni_code, zona_code)
-                    os.makedirs(destination_path, exist_ok=True)
+                    destination_dir = BASE_DIR / dept_code / muni_code / zona_code
+                    destination_dir.mkdir(parents=True, exist_ok=True)
 
-                    tables_found = set()
+                    tables_found: set[int] = set()
                     for mesa in tables:
                         try:
                             table_number = int(mesa.get("numero"))
@@ -314,66 +317,59 @@ def execute_scraper(SELECTION_CSV: str = SAMPLE_CSV_PATH):
                             continue
 
                         if table_number not in tables_needed:
-                            continue  # Filtro a nivel de mesa individual
-
-                        relative_path_pdf = mesa.get("nombre_archivo")
-                        if not relative_path_pdf:
-                            tables_found.add(table_number)  # existe en el JSON, pero sin PDF asociado
-                            meta = (dept_code, muni_code, zona_code, puesto_code, str(table_number).zfill(3))
-                            log_error(meta, "Mesa_sin_archivo_pdf_asociado", url_json_tables)
                             continue
 
                         tables_found.add(table_number)
-
                         num_mesa_str = str(table_number).zfill(3)
-                        final_pdf_url = f"{BASE_URL}{relative_path_pdf.lstrip('/')}"
-                        filename = f"{dept_code}_{muni_code}_{zona_code}_{puesto_code}_{num_mesa_str}.pdf"
-                        destination_file = os.path.join(destination_path, filename)
-
-                        id = f"{dept_code}|{muni_code} - Puesto {puesto_code} - Mesa {num_mesa_str}"
                         meta = (dept_code, muni_code, zona_code, puesto_code, num_mesa_str)
 
-                        pdf_tasks.append((final_pdf_url, destination_file, id, meta))
+                        relative_path_pdf = mesa.get("nombre_archivo")
+                        if not relative_path_pdf:
+                            log_error(meta, "Mesa_sin_archivo_pdf_asociado", url_json_tables)
+                            continue
 
-                    remaining = tables_needed - tables_found
-                    for remaining_table in remaining:
+                        final_pdf_url = f"{BASE_URL}{relative_path_pdf.lstrip('/')}"
+                        filename = f"{dept_code}_{muni_code}_{zona_code}_{puesto_code}_{num_mesa_str}.pdf"
+                        destination_file = destination_dir / filename
+                        identifier = f"{dept_code}|{muni_code} - Puesto {puesto_code} - Mesa {num_mesa_str}"
+
+                        pdf_tasks.append((final_pdf_url, destination_file, identifier, meta))
+
+                    for remaining_table in tables_needed - tables_found:
                         meta = (dept_code, muni_code, zona_code, puesto_code, str(remaining_table).zfill(3))
                         log_error(meta, "Mesa_no_encontrada_en_JSON", url_json_tables)
 
+    # Reporte de puestos ausentes en índice o árbol DIVIPOLE
     if positions_not_found:
-        print(f"\n[!] {len(positions_not_found)} puesto(s) del CSV no existen en el índice de la Registraduría:")
+        print(f"\n[!] {len(positions_not_found)} puesto(s) del CSV no existen en index.json:")
         for key in positions_not_found:
             print(f"    - dd={key[0]} mm={key[1]} zz={key[2]} pp={key[3]}")
 
-    unvisited_keys = set(seletion.keys()) - visited_keys
+    unvisited_keys = set(selection.keys()) - visited_keys
     if unvisited_keys:
-        print(
-            f"\n[!] {len(unvisited_keys)} puesto(s) del CSV NO existen como nodo en el árbol "
-            f"del divipole.json (nunca se visitaron al recorrer departamentos/municipios/zonas/puestos):"
-        )
-        for k in unvisited_keys:
-            print(f"    - dd={k[0]} mm={k[1]} zz={k[2]} pp={k[3]}")
-            for m_table in seletion[k]:
-                meta = (k[0], k[1], k[2], k[3], str(m_table).zfill(3))
+        print(f"\n[!] {len(unvisited_keys)} puesto(s) del CSV no existen en divipole.json:")
+        for key in unvisited_keys:
+            print(f"    - dd={key[0]} mm={key[1]} zz={key[2]} pp={key[3]}")
+            for missing_table in selection[key]:
+                meta = (key[0], key[1], key[2], key[3], str(missing_table).zfill(3))
                 log_error(meta, "Puesto_no_encontrado_en_estructura_divipole", "")
 
     if not pdf_tasks:
         print("\n[-] Cero tareas programadas. Revisa el CSV de selección y los códigos.")
         return
 
+    # Fase 3: Descarga concurrente con pool de hilos
     print(f"\n[=== FASE 3: DESCARGA DE PDFS ({len(pdf_tasks)} DOCUMENTOS) ===]")
-
     with ThreadPoolExecutor(max_workers=MAX_DOWNLOAD_WORKERS) as executor:
-        next = [
-            executor.submit(download_pdf, url, destino, id_mesa, meta)
-            for url, destino, id_mesa, meta in pdf_tasks
+        futures = [
+            executor.submit(download_pdf, url, destino, identifier, meta)
+            for url, destino, identifier, meta in pdf_tasks
         ]
-        for n in as_completed(next):
-            print(n.result())
+        for future in as_completed(futures):
+            print(future.result())
 
-    total_requested = sum(len(v) for v in seletion.values())
+    total_requested = sum(len(tables) for tables in selection.values())
     missing = total_requested - len(pdf_tasks)
-    print(f"\n[OK] Proceso terminado. {len(pdf_tasks)} mesa(s) encoladas de las {total_requested} solicitadas.")
+    print(f"\n[OK] Proceso terminado. {len(pdf_tasks)} mesa(s) encoladas de {total_requested} solicitadas.")
     if missing > 0:
-        print(f"[!] {missing} mesa(s) no se encolaron. Revisa {ERRORS_CSV_PATH} para ver el motivo exacto de cada una.")
-
+        print(f"[!] {missing} mesa(s) no se encolaron. Revisa {ERRORS_CSV_PATH}.")
