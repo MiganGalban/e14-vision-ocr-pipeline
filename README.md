@@ -103,7 +103,7 @@ $$n = \frac{N \cdot Z^2 \cdot p \cdot q}{e^2 \cdot (N - 1) + Z^2 \cdot p \cdot q
 | **Encabezado** | `flag_baja_conf_encabezado` | Confianza `< 0.75` en barras o `< 0.55` en `Codigo`, patrón de barras de 15 dígitos inválido (`b1[:11] != b2[:11]` o páginas `01`/`02`), o `Codigo != Codigo_2` / $\neq 7$ dígitos. |
 | **Votos (TrOCR)** | `flag_baja_conf_votos` | Alguna casilla numérica (`0`–`9`) $< 0.75$ o promedio global del acta $< 0.80$. |
 | **Votos (TrOCR)** | `flag_caracter_anomalo` | TrOCR predice un símbolo especial (`*`, `#`, `-`, `/`, `\`, `.`) por tachón o marca. |
-| **Aritmética** | `flag_descuadre_aritmetico` | $(v_a + v_b + v_{blan} + v_{nulo} + v_{s\\_mrc} \neq suma_t)$ o $((t_{urna} - t_{inc}) \neq suma_t)$. |
+| **Aritmética** | `flag_descuadre_aritmetico` | `(v_a + v_b + v_blan + v_nulo + v_s_mrc ≠ suma_t)` o `((t_urna - t_inc) ≠ suma_t)`. |
 | **Auditoría OMR** | `flag_omr_recuento_ambiguo` | `Re_count_si` y `Re_count_no` detectados como `True` simultáneamente. |
 | **Auditoría OMR** | `flag_sin_firmas_jurados` | Ninguna de las 6 casillas de firma (`Firma_J1` a `Firma_J6`) supera el umbral OMR. |
 
@@ -202,9 +202,9 @@ erDiagram
 
 Ambos notebooks contienen **salidas, tablas y visualizaciones pre-renderizadas** para auditar el pipeline completo directamente desde GitHub sin clonar ni configurar credenciales:
 
-1. *FASE 1* - **[`notebooks/01_extract_sample.ipynb`](notebooks/01_extract_sample.ipynb)** *:*
+1. **FASE 1** - **[`notebooks/01_extract_sample.ipynb`](notebooks/01_extract_sample.ipynb)** *:*
    * Ingestión de **13.742 puestos** desde Supabase, filtro doméstico (`13.489` puestos / `118.346` mesas), cálculo muestral Cochran ($n = 383$), estratificación proporcional y descarga concurrente de las 383 actas PDF.
-2. *FASE 2* - **[`notebooks/02_e14_vision_ocr_pipeline.ipynb`](notebooks/02_e14_vision_ocr_pipeline.ipynb)** *:*
+2. **FASE 2** - **[`notebooks/02_e14_vision_ocr_pipeline.ipynb`](notebooks/02_e14_vision_ocr_pipeline.ipynb)** *:*
    * **Demostración visual en 1 acta:** Detección de las 4 marcas fiduciarias, página alineada con cuadrícula porcentual, recortes de encabezados, tripletas de votación y regiones OMR junto a las predicciones y confianzas obtenidas.
    * **Ejecución batch y reporte de balance:** Procesamiento del lote completo hacia Supabase con resumen de tiempos, tasa de actas limpias y desglose por cada una de las 12 banderas.
    * **Inspector visual (`inspect_e14_pdf`):** Herramienta de diagnóstico para auditar cualquier acta marcada en `data/errores_procesamiento.csv`.
